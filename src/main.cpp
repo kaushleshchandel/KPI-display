@@ -4,7 +4,7 @@
 #include "WiFi.h"
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
- 
+
 const char *ssid = "AAA";
 const char *password = "608980608980";
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -26,13 +26,15 @@ Arduino_GFX *gfx = new Arduino_ST7789(bus, 5 /* RST */, 0 /* rotation */, true /
 int32_t w, h, n, n1, cx, cy, cx1, cy1, cn, cn1;
 uint8_t tsa, tsb, tsc, ds;
 
-String fetchPledgedAmount() {
+String raised;
+String backers;
 
-    String raised  ;
+void fetchPledgedAmount()
+{
 
     WiFiClientSecure client;
     // Uncomment the next line to bypass SSL certificate verification (not recommended for production)
-      client.setInsecure();
+    client.setInsecure();
 
     HTTPClient http;
     String url = "https://www.crowdsupply.com/boondock-technologies/boondock-echo";
@@ -40,30 +42,65 @@ String fetchPledgedAmount() {
     http.begin(client, url);
     int httpCode = http.GET();
 
-    if (httpCode == 200) {
-        String payload = http.getString();
-        int startIndex = payload.indexOf("<p class=\"project-pledged\">");
-        if (startIndex != -1) {
-            int endIndex = payload.indexOf("</p>", startIndex);
-            String pledgedSection = payload.substring(startIndex, endIndex);
+    if (httpCode == 200)
+    {
+        String payloadraised = http.getString();
+        String payloadbackers = payloadraised;
+
+        int startIndexRaised = payloadraised.indexOf("<p class=\"project-pledged\">");
+
+        if (startIndexRaised != -1)
+        {
+            int endIndex = payloadraised.indexOf("</p>", startIndexRaised);
+            String pledgedSection = payloadraised.substring(startIndexRaised, endIndex);
             int spanStart = pledgedSection.indexOf("<span>");
             int spanEnd = pledgedSection.indexOf("</span>", spanStart);
             String amountRaised = pledgedSection.substring(spanStart + 6, spanEnd);
             amountRaised.replace("<sup>", "");
             amountRaised.replace("</sup>", "");
-            raised =  amountRaised;
+            raised = amountRaised;
 
-            Serial.println("Amount Raised: " + amountRaised);
-        } else {
-            Serial.println("Raised amount element not found.");
+            //  Serial.println("Amount Raised: " + amountRaised);
         }
-    } else {
+        else
+        {
+            raised = "-";
+            //  Serial.println("Raised amount element not found.");
+        }
+
+        //<a href="/boondock-technologies/boondock-echo/backers">
+        int startIndexBackers = payloadbackers.indexOf("<a href=\"/boondock-technologies/boondock-echo/backers\"");
+
+        // Fetch the Backers
+        if (startIndexBackers != -1)
+        {
+            int endIndex = payloadbackers.indexOf("\"fact-label\">", startIndexBackers);
+            String backerSection = payloadbackers.substring(startIndexBackers, endIndex);
+        
+            int spanStart = backerSection.indexOf("fact-number\">");
+            int spanEnd = backerSection.indexOf("</span>", spanStart);
+            String amountbackers = backerSection.substring(spanStart + 6, spanEnd);
+             amountbackers.replace("umber\">", "");
+            //  amountbackers.replace("</sup>", "");
+            backers = "Backers " + amountbackers ;
+
+            
+            Serial.println(backers);
+        }
+        else
+        {
+            backers = "-";
+            Serial.println("Backers amount element not found.");
+        }
+    }
+    else
+    {
+        backers = "-";
         Serial.print("Failed to retrieve webpage, status code: ");
         Serial.println(httpCode);
     }
 
     http.end();
-    return raised;
 }
 
 void setup()
@@ -115,19 +152,25 @@ static inline uint32_t micros_start()
         ;
     return micros();
 }
- 
 
 void loop(void)
 {
     Serial.println(".");
-    gfx->setCursor(50, 60);
-    //gfx->clear;
+    gfx->setCursor(50, 30);
+    // gfx->clear;
     gfx->setTextSize(6);
     gfx->setTextColor(WHITE);
-       // Clear the screen
+    // Clear the screen
     gfx->fillScreen(BLACK); // Replace BLACK with the background color of your choice
+    fetchPledgedAmount();
+    gfx->print(raised);
 
-    gfx->print(fetchPledgedAmount());
+    gfx->setCursor(50, 120);
+    // gfx->clear;
+    gfx->setTextSize(3);
+    gfx->setTextColor(YELLOW);
+    gfx->print(backers);
+
 
     delay(300000);
 }
